@@ -1,15 +1,34 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
+import { AuthProvider } from '../context/AuthContext';
 import { HomePage } from '../pages/HomePage';
 import { WelcomePage } from '../pages/WelcomePage';
+import { ProtectedRoute } from './ProtectedRoute';
+
+const RootLayout = () => {
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  );
+};
 
 const router = createBrowserRouter([
   {
-    path: '/',
-    element: <WelcomePage />,
-  },
-  {
-    path: '/presentations',
-    element: <HomePage />,
+    element: <RootLayout />,
+    children: [
+      {
+        path: '/',
+        element: <WelcomePage />,
+      },
+      {
+        path: '/presentations',
+        element: (
+          <ProtectedRoute>
+            <HomePage />
+          </ProtectedRoute>
+        ),
+      },
+    ],
   },
 ]);
 

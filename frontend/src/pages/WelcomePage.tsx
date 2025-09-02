@@ -34,7 +34,7 @@ export const WelcomePage = () => {
         onRegisterClick={(e) => handleOpenModal('register', e)}
       />
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <HeroSection />
+        <HeroSection onRegisterClick={(e) => handleOpenModal('register', e)} />
         <Divider />
         <FeaturesSection />
       </Box>

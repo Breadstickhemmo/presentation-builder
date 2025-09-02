@@ -7,13 +7,17 @@ import Grid from '@mui/material/Grid';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { ReactComponent as HeroIllustration } from '../assets/hero-illustration.svg';
 
-export const HeroSection = () => {
+interface HeroSectionProps {
+  onRegisterClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}
+
+export const HeroSection: React.FC<HeroSectionProps> = ({ onRegisterClick }) => {
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 8, md: 12 } }}>
       <Grid container spacing={4} alignItems="center">
         <Grid size={{ xs: 12, md: 6 }}>
           <Typography
-            variant="h2" 
+            variant="h2"
             component="h1"
             fontWeight="700"
             sx={{
@@ -44,6 +48,7 @@ export const HeroSection = () => {
               variant="contained"
               size="large"
               endIcon={<ArrowForwardIcon />}
+              onClick={onRegisterClick}
               sx={{
                 py: 1.5,
                 px: 4,
