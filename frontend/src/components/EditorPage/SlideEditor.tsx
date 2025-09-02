@@ -1,34 +1,19 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { Box, Paper, Typography } from '@mui/material';
-import { EditableText } from './EditableText';
-
-interface Slide {
-  id: number;
-  title: string | null;
-  content: string | null;
-}
+import { Slide, SlideElement } from '../../hooks/usePresentation';
+import { EditableElement } from './EditableElement';
 
 interface SlideEditorProps {
   slide: Slide | null;
-  onUpdate: (slideId: number, data: { title?: string; content?: string }) => void;
+  scale: number;
+  onUpdateElement: (id: string, data: Partial<SlideElement>) => void;
+  onDeleteElement: (id: string) => void;
 }
 
-export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, onUpdate }) => {
-  const handleTitleSave = useCallback((newTitle: string) => {
-    if (slide) {
-      onUpdate(slide.id, { title: newTitle });
-    }
-  }, [slide, onUpdate]);
-
-  const handleContentSave = useCallback((newContent: string) => {
-    if (slide) {
-      onUpdate(slide.id, { content: newContent });
-    }
-  }, [slide, onUpdate]);
-
+export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, scale, onUpdateElement, onDeleteElement }) => {
   if (!slide) {
     return (
-      <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Typography color="text.secondary">Выберите слайд для редактирования</Typography>
       </Box>
     );
@@ -40,25 +25,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, onUpdate }) => 
       sx={{
         width: 1280,
         height: 720,
-        p: 4,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 3,
-        boxSizing: 'border-box'
+        position: 'relative',
+        bgcolor: slide.background_color,
+        overflow: 'hidden',
       }}
     >
-      <EditableText
-        initialValue={slide.title || ''}
-        onSave={handleTitleSave}
-        placeholder="Введите заголовок"
-        variant="h3"
-      />
-      <EditableText
-        initialValue={slide.content || ''}
-        onSave={handleContentSave}
-        placeholder="Введите подзаголовок"
-        variant="body1"
-      />
+      {slide.elements.map(element => (
+        <EditableElement 
+          key={element.id} 
+          element={element}
+          scale={scale}
+          onUpdate={onUpdateElement}
+          onDelete={onDeleteElement}
+        />
+      ))}
     </Paper>
   );
 };

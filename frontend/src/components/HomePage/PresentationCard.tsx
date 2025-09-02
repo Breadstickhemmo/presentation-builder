@@ -5,18 +5,13 @@ import { Link } from 'react-router-dom';
 import apiClient from '../../services/apiService';
 import { useNotification } from '../../context/NotificationContext';
 import { SlidePreview } from '../EditorPage/SlidePreview';
-
-interface SlideData {
-  id: number;
-  title: string | null;
-  content: string | null;
-}
+import { Slide } from '../../hooks/usePresentation';
 
 interface Presentation {
   id: string;
   title: string;
   updated_at: string;
-  first_slide: SlideData | null;
+  first_slide: Slide | null;
 }
 
 interface PresentationCardProps {

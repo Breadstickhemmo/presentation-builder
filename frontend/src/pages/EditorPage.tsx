@@ -16,10 +16,12 @@ export const EditorPage = () => {
     loading, 
     activeSlide, 
     handleSelectSlide, 
-    handleUpdateSlide, 
     handleAddSlide, 
     handleDeleteSlide,
-    handleRenamePresentation
+    handleRenamePresentation,
+    handleAddElement,
+    handleUpdateElement,
+    handleDeleteElement
   } = usePresentation(presentationId);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,11 +58,7 @@ export const EditorPage = () => {
   }, [presentation]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 112px)' }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 112px)' }}><CircularProgress /></Box>;
   }
 
   if (!presentation) {
@@ -74,6 +72,7 @@ export const EditorPage = () => {
           title={presentation.title} 
           presentationId={presentation.id} 
           onRenameClick={handleOpenRename} 
+          onAddElement={handleAddElement}
         />
         <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
           <SlideList
@@ -85,17 +84,15 @@ export const EditorPage = () => {
           />
           <Box 
             ref={containerRef}
-            sx={{ 
-              flexGrow: 1, 
-              backgroundColor: 'grey.200',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden' 
-            }}
+            sx={{ flexGrow: 1, backgroundColor: 'grey.200', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
           >
             <Box sx={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
-              <SlideEditor slide={activeSlide} onUpdate={handleUpdateSlide} />
+              <SlideEditor 
+                slide={activeSlide} 
+                scale={scale}
+                onUpdateElement={handleUpdateElement}
+                onDeleteElement={handleDeleteElement}
+              />
             </Box>
           </Box>
         </Box>
@@ -103,17 +100,7 @@ export const EditorPage = () => {
       <Dialog open={isRenameOpen} onClose={handleCloseRename} fullWidth maxWidth="xs">
         <DialogTitle>Переименовать презентацию</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Название презентации"
-            type="text"
-            fullWidth
-            variant="standard"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSaveRename()}
-          />
+          <TextField autoFocus margin="dense" label="Название презентации" type="text" fullWidth variant="standard" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSaveRename()} />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseRename}>Отмена</Button>

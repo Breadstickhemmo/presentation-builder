@@ -1,11 +1,6 @@
 import React from 'react';
 import { Paper, Typography } from '@mui/material';
-
-interface Slide {
-  id: number;
-  title: string | null;
-  content: string | null;
-}
+import { Slide } from '../../hooks/usePresentation';
 
 interface SlideThumbnailProps {
   slide: Slide;
@@ -14,6 +9,9 @@ interface SlideThumbnailProps {
 }
 
 export const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, isActive, onClick }) => {
+  const titleElement = slide.elements.find(e => e.element_type === 'TEXT');
+  const contentElement = slide.elements.filter(e => e.element_type === 'TEXT')[1];
+
   return (
     <Paper
       variant="outlined"
@@ -31,6 +29,7 @@ export const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, isActive,
         justifyContent: 'center',
         alignItems: 'center',
         textAlign: 'center',
+        bgcolor: slide.background_color,
       }}
     >
       <Typography
@@ -43,7 +42,7 @@ export const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, isActive,
           whiteSpace: 'nowrap',
         }}
       >
-        {slide.title || ' '}
+        {titleElement?.content || ' '}
       </Typography>
       <Typography
         sx={{
@@ -55,7 +54,7 @@ export const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, isActive,
           overflow: 'hidden',
         }}
       >
-        {slide.content || ' '}
+        {contentElement?.content || ' '}
       </Typography>
     </Paper>
   );

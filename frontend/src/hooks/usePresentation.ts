@@ -2,15 +2,24 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/apiService';
 import { useNotification } from '../context/NotificationContext';
 
-interface Slide {
-  id: number;
-  title: string | null;
+export interface SlideElement {
+  id: string;
+  element_type: 'TEXT' | 'IMAGE' | 'VIDEO';
+  pos_x: number;
+  pos_y: number;
+  width: number;
+  height: number;
   content: string | null;
-  slide_number: number;
-  background_color: string;
 }
 
-interface PresentationData {
+export interface Slide {
+  id: number;
+  slide_number: number;
+  background_color: string;
+  elements: SlideElement[];
+}
+
+export interface PresentationData {
   id: string;
   title: string;
   slides: Slide[];
@@ -44,27 +53,57 @@ export const usePresentation = (presentationId?: string) => {
 
   const handleSelectSlide = (id: number) => {
     const slide = presentation?.slides.find(s => s.id === id);
-    if (slide) {
-      setActiveSlide(slide);
-    }
+    if (slide) setActiveSlide(slide);
   };
 
-  const handleUpdateSlide = useCallback(async (slideId: number, data: { title?: string; content?: string }) => {
+  const handleAddElement = async (type: 'TEXT') => {
+    if (!activeSlide) return;
+    const newElementData = { element_type: type, content: 'Новый текст' };
     try {
-      await apiClient.put(`/slides/${slideId}`, data);
+      const response = await apiClient.post(`/slides/${activeSlide.id}/elements`, newElementData);
+      const createdElement = response.data;
+      
       setPresentation(prev => {
         if (!prev) return null;
-        const updatedSlides = prev.slides.map(s => 
-          s.id === slideId ? { ...s, ...data } : s
-        );
-        setActiveSlide(prevActive => prevActive ? updatedSlides.find(s => s.id === prevActive.id) || null : null);
-        return { ...prev, slides: updatedSlides };
+        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: [...s.elements, createdElement] } : s);
+        setActiveSlide(newSlides.find(s => s.id === activeSlide.id) || null);
+        return { ...prev, slides: newSlides };
       });
-    } catch (error) {
-      showNotification('Ошибка сохранения', 'error');
-    }
-  }, [showNotification]);
+    } catch (error) { showNotification('Не удалось добавить элемент', 'error'); }
+  };
 
+  const handleUpdateElement = useCallback(async (elementId: string, data: Partial<SlideElement>) => {
+    if (!activeSlide) return;
+    const originalPresentation = presentation;
+    
+    setPresentation(prev => {
+        if (!prev) return null;
+        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: s.elements.map(e => e.id === elementId ? { ...e, ...data } : e) } : s);
+        setActiveSlide(newSlides.find(s => s.id === activeSlide.id) || null);
+        return { ...prev, slides: newSlides };
+    });
+    
+    try {
+      await apiClient.put(`/elements/${elementId}`, data);
+    } catch (error) {
+      showNotification('Ошибка сохранения элемента', 'error');
+      setPresentation(originalPresentation);
+    }
+  }, [activeSlide, presentation, showNotification]);
+
+  const handleDeleteElement = async (elementId: string) => {
+    if (!activeSlide) return;
+    try {
+      await apiClient.delete(`/elements/${elementId}`);
+      setPresentation(prev => {
+        if (!prev) return null;
+        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: s.elements.filter(e => e.id !== elementId) } : s);
+        setActiveSlide(newSlides.find(s => s.id === activeSlide.id) || null);
+        return { ...prev, slides: newSlides };
+      });
+    } catch (error) { showNotification('Не удалось удалить элемент', 'error'); }
+  };
+  
   const handleAddSlide = async () => {
     try {
       const response = await apiClient.post(`/presentations/${presentationId}/slides`);
@@ -72,9 +111,7 @@ export const usePresentation = (presentationId?: string) => {
       setPresentation(prev => prev ? { ...prev, slides: [...prev.slides, newSlide] } : null);
       setActiveSlide(newSlide);
       showNotification('Слайд добавлен', 'success');
-    } catch (error) {
-      showNotification('Не удалось добавить слайд', 'error');
-    }
+    } catch (error) { showNotification('Не удалось добавить слайд', 'error'); }
   };
 
   const handleDeleteSlide = async (slideId: number) => {
@@ -107,13 +144,8 @@ export const usePresentation = (presentationId?: string) => {
   }, [presentation, showNotification]);
 
   return { 
-    presentation, 
-    loading, 
-    activeSlide, 
-    handleSelectSlide, 
-    handleUpdateSlide, 
-    handleAddSlide, 
-    handleDeleteSlide,
-    handleRenamePresentation
+    presentation, loading, activeSlide, 
+    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleRenamePresentation,
+    handleAddElement, handleUpdateElement, handleDeleteElement
   };
 };

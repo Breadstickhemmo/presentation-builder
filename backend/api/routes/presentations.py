@@ -4,10 +4,15 @@ import jwt
 import io
 from pptx import Presentation as PptxPresentation
 from pptx.util import Inches, Pt
-from ..models import User, Presentation, Slide
+from ..models import User, Presentation, Slide, SlideElement
 from ..extensions import db
 
 presentations_bp = Blueprint('presentations', __name__)
+
+PIXELS_PER_INCH = 96.0
+
+def px_to_inches(px):
+    return px / PIXELS_PER_INCH
 
 def token_required(f):
     @wraps(f)
@@ -28,18 +33,33 @@ def token_required(f):
 def download_presentation(presentation_id):
     presentation = Presentation.query.get_or_404(presentation_id)
     if presentation.user_id != g.current_user.id: return jsonify({'message': 'Доступ запрещен'}), 403
+    
     prs = PptxPresentation()
-    prs.slide_width = Inches(16); prs.slide_height = Inches(9)
+    prs.slide_width = Inches(16)
+    prs.slide_height = Inches(9)
+    
     slides = Slide.query.filter_by(presentation_id=presentation.id).order_by(Slide.slide_number).all()
+
     for slide_data in slides:
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        if slide_data.title:
-            txBox = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(14), Inches(1.5))
-            p = txBox.text_frame.paragraphs[0]; p.text = slide_data.title; p.font.size = Pt(44); p.font.bold = True
-        if slide_data.content:
-            txBox = slide.shapes.add_textbox(Inches(1), Inches(2.5), Inches(14), Inches(5.5))
-            tf = txBox.text_frame; tf.text = slide_data.content; tf.paragraphs[0].font.size = Pt(28)
-    file_stream = io.BytesIO(); prs.save(file_stream); file_stream.seek(0)
+        for element in slide_data.elements:
+            if element.element_type == 'TEXT':
+                left = px_to_inches(element.pos_x)
+                top = px_to_inches(element.pos_y)
+                width = px_to_inches(element.width)
+                height = px_to_inches(element.height)
+                
+                txBox = slide.shapes.add_textbox(left, top, width, height)
+                tf = txBox.text_frame
+                tf.text = element.content or ""
+                tf.word_wrap = True
+                
+                font_size = max(12, int(element.height * 0.4))
+                tf.paragraphs[0].font.size = Pt(font_size)
+
+    file_stream = io.BytesIO()
+    prs.save(file_stream)
+    file_stream.seek(0)
     return send_file(file_stream, as_attachment=True, download_name=f"{presentation.title}.pptx", mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
 
 @presentations_bp.route('/presentations', methods=['POST'])
@@ -50,15 +70,47 @@ def create_presentation():
     new_presentation = Presentation(title=title, owner=g.current_user)
     db.session.add(new_presentation)
     db.session.flush()
-    first_slide = Slide(slide_number=1, presentation_id=new_presentation.id, title="Ваш заголовок")
+
+    first_slide = Slide(slide_number=1, presentation_id=new_presentation.id)
     db.session.add(first_slide)
+    db.session.flush()
+
+    title_element = SlideElement(slide_id=first_slide.id, element_type='TEXT', content='Ваш заголовок', pos_x=100, pos_y=100, width=1080, height=150)
+    subtitle_element = SlideElement(slide_id=first_slide.id, element_type='TEXT', content='Ваш подзаголовок', pos_x=100, pos_y=260, width=1080, height=100)
+    db.session.add(title_element)
+    db.session.add(subtitle_element)
+    
     db.session.commit()
+
+    first_slide_data = {
+        'id': first_slide.id,
+        'elements': [
+            {'id': title_element.id, 'element_type': title_element.element_type, 'pos_x': title_element.pos_x, 'pos_y': title_element.pos_y, 'width': title_element.width, 'height': title_element.height, 'content': title_element.content},
+            {'id': subtitle_element.id, 'element_type': subtitle_element.element_type, 'pos_x': subtitle_element.pos_x, 'pos_y': subtitle_element.pos_y, 'width': subtitle_element.width, 'height': subtitle_element.height, 'content': subtitle_element.content}
+        ]
+    }
+    
     return jsonify({
         'id': new_presentation.id,
         'title': new_presentation.title,
         'updated_at': new_presentation.updated_at.isoformat(),
-        'first_slide': {'id': first_slide.id, 'title': first_slide.title, 'content': first_slide.content}
+        'first_slide': first_slide_data
     }), 201
+
+@presentations_bp.route('/presentations/<string:presentation_id>', methods=['GET'])
+@token_required
+def get_presentation_by_id(presentation_id):
+    presentation = Presentation.query.get_or_404(presentation_id)
+    if presentation.user_id != g.current_user.id: return jsonify({'message': 'Доступ запрещен'}), 403
+    
+    slides_output = []
+    slides = Slide.query.filter_by(presentation_id=presentation.id).order_by(Slide.slide_number).all()
+    for slide in slides:
+        elements = SlideElement.query.filter_by(slide_id=slide.id).all()
+        elements_output = [{'id': e.id, 'element_type': e.element_type, 'pos_x': e.pos_x, 'pos_y': e.pos_y, 'width': e.width, 'height': e.height, 'content': e.content} for e in elements]
+        slides_output.append({'id': slide.id, 'slide_number': slide.slide_number, 'background_color': slide.background_color, 'elements': elements_output})
+        
+    return jsonify({'id': presentation.id, 'title': presentation.title, 'slides': slides_output}), 200
 
 @presentations_bp.route('/presentations', methods=['GET'])
 @token_required
@@ -67,26 +119,24 @@ def get_presentations():
     output = []
     for p in presentations:
         first_slide = Slide.query.filter_by(presentation_id=p.id, slide_number=1).first()
+        if first_slide:
+            elements = SlideElement.query.filter_by(slide_id=first_slide.id).all()
+            first_slide_data = {
+                'id': first_slide.id,
+                'slide_number': first_slide.slide_number,
+                'background_color': first_slide.background_color,
+                'elements': [{'id': e.id, 'element_type': e.element_type, 'pos_x': e.pos_x, 'pos_y': e.pos_y, 'width': e.width, 'height': e.height, 'content': e.content} for e in elements]
+            }
+        else:
+            first_slide_data = None
+        
         output.append({
             'id': p.id,
             'title': p.title,
             'updated_at': p.updated_at.isoformat(),
-            'first_slide': {
-                'id': first_slide.id,
-                'title': first_slide.title,
-                'content': first_slide.content
-            } if first_slide else None
+            'first_slide': first_slide_data
         })
     return jsonify(output), 200
-
-@presentations_bp.route('/presentations/<string:presentation_id>', methods=['GET'])
-@token_required
-def get_presentation_by_id(presentation_id):
-    presentation = Presentation.query.get_or_404(presentation_id)
-    if presentation.user_id != g.current_user.id: return jsonify({'message': 'Доступ запрещен'}), 403
-    slides = Slide.query.filter_by(presentation_id=presentation.id).order_by(Slide.slide_number).all()
-    slides_output = [{'id': s.id, 'title': s.title, 'content': s.content, 'slide_number': s.slide_number, 'background_color': s.background_color} for s in slides]
-    return jsonify({'id': presentation.id, 'title': presentation.title, 'slides': slides_output}), 200
 
 @presentations_bp.route('/presentations/<string:presentation_id>', methods=['DELETE'])
 @token_required
@@ -102,21 +152,23 @@ def delete_presentation(presentation_id):
 def update_presentation(presentation_id):
     presentation = Presentation.query.get_or_404(presentation_id)
     if presentation.user_id != g.current_user.id: return jsonify({'message': 'Доступ запрещен'}), 403
-    
     data = request.get_json()
-    if 'title' in data:
-        presentation.title = data['title']
+    if 'title' in data: presentation.title = data['title']
     db.session.commit()
-
-    first_slide = Slide.query.filter_by(presentation_id=presentation.id, slide_number=1).first()
     
+    first_slide = Slide.query.filter_by(presentation_id=presentation.id, slide_number=1).first()
+    if first_slide:
+        elements = SlideElement.query.filter_by(slide_id=first_slide.id).all()
+        first_slide_data = {
+            'id': first_slide.id,
+            'elements': [{'id': e.id, 'element_type': e.element_type, 'pos_x': e.pos_x, 'pos_y': e.pos_y, 'width': e.width, 'height': e.height, 'content': e.content} for e in elements]
+        }
+    else:
+        first_slide_data = None
+
     return jsonify({
         'id': presentation.id,
         'title': presentation.title,
         'updated_at': presentation.updated_at.isoformat(),
-        'first_slide': {
-            'id': first_slide.id,
-            'title': first_slide.title,
-            'content': first_slide.content
-        } if first_slide else None
+        'first_slide': first_slide_data
     }), 200

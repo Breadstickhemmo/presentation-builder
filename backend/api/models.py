@@ -9,28 +9,27 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     presentations = db.relationship('Presentation', backref='owner', lazy=True, cascade="all, delete-orphan")
 
-    def __repr__(self):
-        return f"User('{self.email}')"
-
 class Presentation(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = db.Column(db.String(150), nullable=False, default="Новая презентация")
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    thumbnail_url = db.Column(db.String(255), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     slides = db.relationship('Slide', backref='presentation', lazy=True, cascade="all, delete-orphan")
 
-    def __repr__(self):
-        return f"Presentation('{self.title}', Owner: '{self.owner.email}')"
-
 class Slide(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=True)
-    content = db.Column(db.Text, nullable=True)
     slide_number = db.Column(db.Integer, nullable=False)
     background_color = db.Column(db.String(7), nullable=False, default='#FFFFFF')
     presentation_id = db.Column(db.String(36), db.ForeignKey('presentation.id'), nullable=False)
+    elements = db.relationship('SlideElement', backref='slide', lazy=True, cascade="all, delete-orphan")
 
-    def __repr__(self):
-        return f"Slide(#{self.slide_number} in Presentation ID: {self.presentation_id})"
+class SlideElement(db.Model):
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    element_type = db.Column(db.String(10), nullable=False)
+    pos_x = db.Column(db.Integer, nullable=False, default=100)
+    pos_y = db.Column(db.Integer, nullable=False, default=100)
+    width = db.Column(db.Integer, nullable=False, default=400)
+    height = db.Column(db.Integer, nullable=False, default=150)
+    content = db.Column(db.Text, nullable=True)
+    slide_id = db.Column(db.Integer, db.ForeignKey('slide.id'), nullable=False)
