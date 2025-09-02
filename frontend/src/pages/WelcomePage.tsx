@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Box, Divider } from '@mui/material';
-import { Header } from '../components/Header';
-import { HeroSection } from '../components/HeroSection';
-import { FeaturesSection } from '../components/FeaturesSection';
-import { Footer } from '../components/Footer';
-import { AuthModal } from '../components/AuthModal';
+import { Header } from '../components/common/Header';
+import { HeroSection } from '../components/WelcomePage/HeroSection';
+import { FeaturesSection } from '../components/WelcomePage/FeaturesSection';
+import { Footer } from '../components/common/Footer';
+import { AuthModal } from '../components/common/AuthModal';
 
 type FormType = 'login' | 'register';
 

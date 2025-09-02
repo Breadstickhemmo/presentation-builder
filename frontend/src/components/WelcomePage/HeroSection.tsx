@@ -5,7 +5,7 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { ReactComponent as HeroIllustration } from '../assets/hero-illustration.svg';
+import { ReactComponent as HeroIllustration } from '../../assets/hero-illustration.svg';
 
 interface HeroSectionProps {
   onRegisterClick: (event: React.MouseEvent<HTMLButtonElement>) => void;

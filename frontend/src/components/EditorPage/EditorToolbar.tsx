@@ -1,0 +1,57 @@
+import React from 'react';
+import { AppBar, Toolbar, Typography, Tooltip, IconButton } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
+import EditIcon from '@mui/icons-material/Edit';
+import { useAuth } from '../../context/AuthContext';
+
+interface EditorToolbarProps {
+  title: string;
+  presentationId: string;
+  onRenameClick: () => void;
+}
+
+export const EditorToolbar: React.FC<EditorToolbarProps> = ({ title, presentationId, onRenameClick }) => {
+  const { token } = useAuth();
+
+  const handleDownload = () => {
+    const url = `http://127.0.0.1:5000/api/presentations/${presentationId}/download`;
+    fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    .then(res => res.blob())
+    .then(blob => {
+      const href = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = href;
+      link.setAttribute('download', `${title}.pptx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(href);
+    });
+  };
+
+  return (
+    <AppBar position="static" color="default" elevation={1}>
+      <Toolbar variant="dense">
+        <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
+          {title}
+        </Typography>
+
+        <Tooltip title="Переименовать">
+          <IconButton onClick={onRenameClick}>
+            <EditIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Скачать (.pptx)">
+          <IconButton onClick={handleDownload}>
+            <DownloadIcon />
+          </IconButton>
+        </Tooltip>
+      </Toolbar>
+    </AppBar>
+  );
+};

@@ -1,6 +1,6 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../services/apiService';
+import apiClient, { setupInterceptors } from '../services/apiService';
 import { useNotification } from './NotificationContext';
 
 interface AuthContextType {
@@ -17,26 +17,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
+  const logout = useCallback(() => {
+    setToken(null);
+    localStorage.removeItem('token');
+    showNotification('Ваша сессия истекла. Пожалуйста, войдите снова.', 'info');
+    navigate('/');
+  }, [navigate, showNotification]);
+
   useEffect(() => {
     if (token) {
       localStorage.setItem('token', token);
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
       localStorage.removeItem('token');
-      delete apiClient.defaults.headers.common['Authorization'];
     }
   }, [token]);
+
+  useEffect(() => {
+    setupInterceptors(logout);
+  }, [logout]);
 
   const login = (newToken: string) => {
     setToken(newToken);
     showNotification('Добро пожаловать!', 'success');
     navigate('/presentations');
-  };
-
-  const logout = () => {
-    setToken(null);
-    showNotification('Вы вышли из системы.', 'info');
-    navigate('/');
   };
 
   const value = {

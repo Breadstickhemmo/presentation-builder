@@ -2,7 +2,7 @@ import React from 'react';
 import { TextField, Button, Typography, Link, CircularProgress } from '@mui/material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import apiClient from '../services/apiService';
+import apiClient from '../../services/apiService';
 
 interface RegisterFormProps {
   onSuccess: (values: any) => void;

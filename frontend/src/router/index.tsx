@@ -1,10 +1,11 @@
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { NotificationProvider } from '../context/NotificationContext';
 import { HomePage } from '../pages/HomePage';
 import { WelcomePage } from '../pages/WelcomePage';
+import { EditorPage } from '../pages/EditorPage';
 import { PrivateRoutes } from './PrivateRoutes';
 import { PublicRoutes } from './PublicRoutes';
-import { NotificationProvider } from '../context/NotificationContext';
 
 const RootLayout = () => {
   return (
@@ -15,6 +16,7 @@ const RootLayout = () => {
     </NotificationProvider>
   );
 };
+
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
@@ -25,6 +27,10 @@ const router = createBrowserRouter([
           {
             path: '/presentations',
             element: <HomePage />,
+          },
+          {
+            path: '/presentations/:presentationId',
+            element: <EditorPage />,
           },
         ],
       },

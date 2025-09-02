@@ -1,5 +1,4 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 
@@ -9,7 +8,16 @@ export const PrivateLayout = () => {
     <Box>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Typography
+            variant="h6"
+            component={RouterLink}
+            to="/presentations"
+            sx={{
+              flexGrow: 1,
+              color: 'inherit',
+              textDecoration: 'none',
+            }}
+          >
             Презентатор.ИИ
           </Typography>
           <Button color="inherit" onClick={logout}>Выйти</Button>

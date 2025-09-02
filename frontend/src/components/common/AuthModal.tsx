@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, Box, Tabs, Tab, IconButton, Alert } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useAuth } from '../context/AuthContext';
-import { useNotification } from '../context/NotificationContext';
-import apiClient from '../services/apiService';
+import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
+import apiClient from '../../services/apiService';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 

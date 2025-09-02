@@ -11,3 +11,7 @@ frontend/build/
 
 # Файлы переменных окружения
 .env
+
+instance/
+migrations/
+thumbnails/

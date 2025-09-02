@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppBar, Toolbar, Typography, Button, Stack, Tooltip, Box } from '@mui/material'; 
+import { AppBar, Toolbar, Typography, Button, Stack, Tooltip, Box } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
@@ -15,6 +15,7 @@ export const Header: React.FC<HeaderProps> = ({ onLoginClick, onRegisterClick })
         <Typography variant="h6" component="div" fontWeight="bold" sx={{ flexGrow: 1 }}>
           Презентатор.ИИ
         </Typography>
+        
         <Stack direction="row" spacing={{ xs: 1, sm: 1.5 }}>
           <Tooltip title="Войти">
             <Button
@@ -22,7 +23,7 @@ export const Header: React.FC<HeaderProps> = ({ onLoginClick, onRegisterClick })
               variant="outlined"
               onClick={onLoginClick}
               sx={{ 
-                minWidth: { xs: 0, sm: '64px' }, 
+                minWidth: { xs: 0, sm: 'auto' }, 
                 px: { xs: 1, sm: 2 } 
               }}
             >
@@ -38,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ onLoginClick, onRegisterClick })
               variant="contained"
               onClick={onRegisterClick}
               sx={{ 
-                minWidth: { xs: 0, sm: '64px' }, 
+                minWidth: { xs: 0, sm: 'auto' }, 
                 px: { xs: 1, sm: 2 } 
               }}
             >
