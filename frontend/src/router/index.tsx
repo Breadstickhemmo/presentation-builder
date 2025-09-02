@@ -2,31 +2,40 @@ import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { HomePage } from '../pages/HomePage';
 import { WelcomePage } from '../pages/WelcomePage';
-import { ProtectedRoute } from './ProtectedRoute';
+import { PrivateRoutes } from './PrivateRoutes';
+import { PublicRoutes } from './PublicRoutes';
+import { NotificationProvider } from '../context/NotificationContext';
 
 const RootLayout = () => {
   return (
-    <AuthProvider>
-      <Outlet />
-    </AuthProvider>
+    <NotificationProvider>
+      <AuthProvider>
+        <Outlet />
+      </AuthProvider>
+    </NotificationProvider>
   );
 };
-
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
       {
-        path: '/',
-        element: <WelcomePage />,
+        element: <PrivateRoutes />,
+        children: [
+          {
+            path: '/presentations',
+            element: <HomePage />,
+          },
+        ],
       },
       {
-        path: '/presentations',
-        element: (
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        ),
+        element: <PublicRoutes />,
+        children: [
+          {
+            path: '/',
+            element: <WelcomePage />,
+          },
+        ],
       },
     ],
   },

@@ -1,7 +1,7 @@
-// src/context/AuthContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiService';
+import { useNotification } from './NotificationContext';
 
 interface AuthContextType {
   token: string | null;
@@ -15,6 +15,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     if (token) {
@@ -28,11 +29,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (newToken: string) => {
     setToken(newToken);
+    showNotification('Добро пожаловать!', 'success');
     navigate('/presentations');
   };
 
   const logout = () => {
     setToken(null);
+    showNotification('Вы вышли из системы.', 'info');
     navigate('/');
   };
 

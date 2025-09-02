@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, Box, Tabs, Tab, IconButton, Alert } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import apiClient from '../services/apiService';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
@@ -17,6 +18,7 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, initialFormType }) => {
   const [tabIndex, setTabIndex] = useState(0);
   const { login } = useAuth();
+  const { showNotification } = useNotification();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, initialForm
       setError(null);
     }
   }, [initialFormType, open]);
-  
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue);
     setError(null);
@@ -35,13 +37,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, initialForm
     login(token);
     onClose();
   };
-  
+
   const handleRegisterSuccess = async (values: any) => {
     try {
+      showNotification('Вы успешно зарегистрированы!', 'success');
       const response = await apiClient.post('/login', { email: values.email, password: values.password });
       handleLoginSuccess(response.data.token);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Не удалось войти после регистрации.');
+      const errorMessage = err.response?.data?.message || 'Не удалось войти после регистрации.';
+      setError(errorMessage);
+      showNotification(errorMessage, 'error');
     }
   };
 
@@ -60,7 +65,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, initialForm
       </DialogTitle>
       
       <DialogContent>
-        <Box sx={{ pt: 2, minHeight: 320 }}>
+        <Box sx={{ pt: 2 }}>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           
           {tabIndex === 0 && (

@@ -11,7 +11,6 @@ type FormType = 'login' | 'register';
 export const WelcomePage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formType, setFormType] = useState<FormType>('login');
-  
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   const handleOpenModal = (type: FormType, event: React.MouseEvent<HTMLButtonElement>) => {

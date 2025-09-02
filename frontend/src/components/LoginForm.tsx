@@ -1,5 +1,6 @@
+// src/components/LoginForm.tsx
 import React from 'react';
-import { Box, TextField, Button, Typography, Link, CircularProgress } from '@mui/material';
+import { TextField, Button, Typography, Link, CircularProgress } from '@mui/material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import apiClient from '../services/apiService';
@@ -12,10 +13,7 @@ interface LoginFormProps {
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError, switchToRegister }) => {
   const formik = useFormik({
-    initialValues: {
-      email: '',
-      password: '',
-    },
+    initialValues: { email: '', password: '' },
     validationSchema: Yup.object({
       email: Yup.string().email('Некорректный email').required('Обязательное поле'),
       password: Yup.string().required('Обязательное поле'),
@@ -44,8 +42,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError, switch
         onChange={formik.handleChange}
         onBlur={formik.handleBlur}
         error={formik.touched.email && Boolean(formik.errors.email)}
-        helperText={formik.touched.email && formik.errors.email}
-        margin="normal"
+        helperText={formik.touched.email && formik.errors.email ? formik.errors.email : ' '}
+        margin="dense"
         autoFocus
       />
       <TextField
@@ -58,14 +56,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError, switch
         onChange={formik.handleChange}
         onBlur={formik.handleBlur}
         error={formik.touched.password && Boolean(formik.errors.password)}
-        helperText={formik.touched.password && formik.errors.password}
-        margin="normal"
+        helperText={formik.touched.password && formik.errors.password ? formik.errors.password : ' '}
+        margin="dense"
       />
       <Button
         type="submit"
         fullWidth
         variant="contained"
-        sx={{ mt: 3, mb: 2 }}
+        sx={{ mt: 2, mb: 2 }}
         disabled={formik.isSubmitting}
       >
         {formik.isSubmitting ? <CircularProgress size={24} /> : 'Войти'}

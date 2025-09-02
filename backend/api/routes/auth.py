@@ -1,6 +1,7 @@
 from flask import request, jsonify, Blueprint, current_app
 from datetime import datetime, timedelta, timezone
 import jwt
+import re
 from ..models import User
 from ..extensions import db, bcrypt
 
@@ -14,6 +15,12 @@ def register():
 
     if not email or not password:
         return jsonify({'message': 'Email и пароль обязательны'}), 400
+
+    if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
+        return jsonify({'message': 'Некорректный формат email'}), 400
+
+    if len(password) < 6:
+        return jsonify({'message': 'Пароль должен быть не менее 6 символов'}), 400
 
     if User.query.filter_by(email=email).first():
         return jsonify({'message': 'Пользователь с таким email уже существует'}), 409

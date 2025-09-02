@@ -12,11 +12,7 @@ interface RegisterFormProps {
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, switchToLogin }) => {
   const formik = useFormik({
-    initialValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
-    },
+    initialValues: { email: '', password: '', confirmPassword: '' },
     validationSchema: Yup.object({
       email: Yup.string().email('Некорректный email').required('Обязательное поле'),
       password: Yup.string().min(6, 'Пароль должен быть минимум 6 символов').required('Обязательное поле'),
@@ -48,8 +44,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
         onChange={formik.handleChange}
         onBlur={formik.handleBlur}
         error={formik.touched.email && Boolean(formik.errors.email)}
-        helperText={formik.touched.email && formik.errors.email}
-        margin="normal"
+        helperText={formik.touched.email && formik.errors.email ? formik.errors.email : ' '}
+        margin="dense"
         autoFocus
       />
       <TextField
@@ -62,8 +58,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
         onChange={formik.handleChange}
         onBlur={formik.handleBlur}
         error={formik.touched.password && Boolean(formik.errors.password)}
-        helperText={formik.touched.password && formik.errors.password}
-        margin="normal"
+        helperText={formik.touched.password && formik.errors.password ? formik.errors.password : ' '}
+        margin="dense"
       />
       <TextField
         fullWidth
@@ -75,14 +71,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError, 
         onChange={formik.handleChange}
         onBlur={formik.handleBlur}
         error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
-        helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
-        margin="normal"
+        helperText={formik.touched.confirmPassword && formik.errors.confirmPassword ? formik.errors.confirmPassword : ' '}
+        margin="dense"
       />
       <Button
         type="submit"
         fullWidth
         variant="contained"
-        sx={{ mt: 3, mb: 2 }}
+        sx={{ mt: 2, mb: 2 }}
         disabled={formik.isSubmitting}
       >
         {formik.isSubmitting ? <CircularProgress size={24} /> : 'Зарегистрироваться'}
