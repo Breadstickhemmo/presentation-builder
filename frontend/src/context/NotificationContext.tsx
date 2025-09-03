@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo } from 'react';
 import { Snackbar, Alert, AlertColor, LinearProgress, Box } from '@mui/material';
 import { keyframes } from '@emotion/react';
 
@@ -32,14 +32,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     setOpen(false);
   };
 
-  const showNotification = (newMessage: string, newSeverity: AlertColor = 'success') => {
+  const showNotification = useCallback((newMessage: string, newSeverity: AlertColor = 'success') => {
     setMessage(newMessage);
     setSeverity(newSeverity);
     setOpen(true);
     setKey(new Date().getTime());
-  };
+  }, []);
 
-  const value = { showNotification };
+  const value = useMemo(() => ({ showNotification }), [showNotification]);
 
   return (
     <NotificationContext.Provider value={value}>

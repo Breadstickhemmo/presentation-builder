@@ -57,6 +57,21 @@ export const usePresentation = (presentationId?: string) => {
     if (slide) setActiveSlide(slide);
   };
 
+    const handleReorderSlides = useCallback(async (reorderedSlides: Slide[]) => {
+    if (!presentation) return;
+
+    const originalSlides = presentation.slides;
+    setPresentation(prev => prev ? { ...prev, slides: reorderedSlides } : null);
+
+    const slideIds = reorderedSlides.map(s => s.id);
+    try {
+      await apiClient.put(`/presentations/${presentation.id}/slides/reorder`, { slide_ids: slideIds });
+    } catch (error) {
+      showNotification('Не удалось сохранить порядок', 'error');
+      setPresentation(prev => prev ? { ...prev, slides: originalSlides } : null);
+    }
+  }, [presentation, showNotification]);
+
   const handleAddSlide = async () => {
     if (!presentationId) return;
     try {
@@ -82,8 +97,12 @@ export const usePresentation = (presentationId?: string) => {
       const newSlides = oldSlides.filter(s => s.id !== slideId);
 
       if (activeSlide?.id === slideId) {
-        const newActiveIndex = Math.max(0, slideToDeleteIndex - 1);
-        setActiveSlide(newSlides.length > 0 ? newSlides[newActiveIndex] : null);
+        if (newSlides.length === 0) {
+          setActiveSlide(null);
+        } else {
+          const newActiveIndex = Math.min(slideToDeleteIndex, newSlides.length - 1);
+          setActiveSlide(newSlides[newActiveIndex]);
+        }
       }
       
       setPresentation({ ...presentation, slides: newSlides });
@@ -126,14 +145,27 @@ export const usePresentation = (presentationId?: string) => {
 
   const handleAddElement = async (type: 'TEXT') => {
     if (!activeSlide) return;
-    const newElementData = { element_type: type, content: 'Новый текст' };
+    const newElementDefaults = {
+      element_type: type,
+      content: 'Новый текст',
+      pos_x: 100,
+      pos_y: 100,
+      width: 400,
+      height: 150,
+      font_size: 24,
+    };
     try {
-      const response = await apiClient.post(`/slides/${activeSlide.id}/elements`, newElementData);
-      const createdElement = response.data;
+      const response = await apiClient.post(`/slides/${activeSlide.id}/elements`, { 
+        element_type: type, 
+        content: 'Новый текст' 
+      });
+      const createdElementFromServer = response.data;
+      
+      const finalElement = { ...newElementDefaults, ...createdElementFromServer };
       
       setPresentation(prev => {
         if (!prev) return null;
-        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: [...s.elements, createdElement] } : s);
+        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: [...s.elements, finalElement] } : s); // Используем finalElement
         setActiveSlide(newSlides.find(s => s.id === activeSlide.id) || null);
         return { ...prev, slides: newSlides };
       });
@@ -155,7 +187,8 @@ export const usePresentation = (presentationId?: string) => {
 
   return { 
     presentation, loading, activeSlide, 
-    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleRenamePresentation,
+    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleReorderSlides,
+    handleRenamePresentation,
     handleAddElement, handleUpdateElement, handleDeleteElement
   };
 };

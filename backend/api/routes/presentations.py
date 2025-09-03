@@ -44,14 +44,17 @@ def download_presentation(presentation_id):
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         for element in slide_data.elements:
             if element.element_type == 'TEXT':
-                left, top = px_to_inches(element.pos_x), px_to_inches(element.pos_y)
-                width, height = px_to_inches(element.width), px_to_inches(element.height)
+                left = Inches(px_to_inches(element.pos_x))
+                top = Inches(px_to_inches(element.pos_y))
+                width = Inches(px_to_inches(element.width))
+                height = Inches(px_to_inches(element.height))
                 
                 txBox = slide.shapes.add_textbox(left, top, width, height)
                 tf = txBox.text_frame
                 tf.text = element.content or ""
                 tf.word_wrap = True
-                tf.paragraphs[0].font.size = Pt(element.font_size or 24)
+                if tf.paragraphs:
+                    tf.paragraphs[0].font.size = Pt(element.font_size or 24)
 
     file_stream = io.BytesIO()
     prs.save(file_stream)

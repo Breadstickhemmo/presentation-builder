@@ -37,7 +37,8 @@ def add_element_to_slide(slide_id):
         'pos_y': new_element.pos_y,
         'width': new_element.width,
         'height': new_element.height,
-        'content': new_element.content
+        'content': new_element.content,
+        'font_size': new_element.font_size
     }), 201
 
 @elements_bp.route('/elements/<string:element_id>', methods=['PUT'])

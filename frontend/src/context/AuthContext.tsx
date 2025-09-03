@@ -1,6 +1,6 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { setupInterceptors } from '../services/apiService';
+import { setupInterceptors } from '../services/apiService';
 import { useNotification } from './NotificationContext';
 
 interface AuthContextType {

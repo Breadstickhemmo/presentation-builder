@@ -13,7 +13,8 @@ export const EditorPage = () => {
   const { presentationId } = useParams<{ presentationId: string }>();
   const { 
     presentation, loading, activeSlide, 
-    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleRenamePresentation,
+    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleReorderSlides,
+    handleRenamePresentation,
     handleAddElement, handleUpdateElement, handleDeleteElement 
   } = usePresentation(presentationId);
 
@@ -95,6 +96,7 @@ export const EditorPage = () => {
             onSelectSlide={handleSelectSlide}
             onAddSlide={handleAddSlide}
             onDeleteSlide={handleDeleteSlide}
+            onReorderSlides={handleReorderSlides}
           />
           <Box 
             ref={containerRef}
