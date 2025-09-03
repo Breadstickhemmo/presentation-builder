@@ -57,6 +57,52 @@ export const EditableElement: React.FC<EditableElementProps> = ({ element, scale
     });
   };
 
+  const renderContent = () => {
+    switch (element.element_type) {
+      case 'TEXT':
+        return isEditing ? (
+          <TextareaAutosize onBlur={handleTextBlur} value={content} onChange={e => setContent(e.target.value)} autoFocus style={editingStyle} />
+        ) : (
+          <Box sx={textStyle}>{element.content}</Box>
+        );
+      case 'IMAGE':
+        return element.content ? (
+          <img 
+            src={element.content} 
+            alt="slide element" 
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            onDragStart={(e) => e.preventDefault()}
+          />
+        ) : null;
+      case 'YOUTUBE_VIDEO':
+        const videoId = element.content;
+        const embedSrc = `https://www.youtube.com/embed/${videoId}`;
+        return (
+            <iframe
+                width="100%"
+                height="100%"
+                src={embedSrc}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+            ></iframe>
+        );
+      case 'UPLOADED_VIDEO':
+        return element.content ? (
+            <video
+                src={element.content}
+                width="100%"
+                height="100%"
+                controls
+                style={{ objectFit: 'contain' }}
+            />
+        ) : null;
+      default:
+        return null;
+    }
+  };
+
   return (
     <Rnd
       scale={scale}
@@ -84,22 +130,13 @@ export const EditableElement: React.FC<EditableElementProps> = ({ element, scale
           '&:hover': { borderColor: isSelected ? 'primary.main' : 'rgba(0,0,0,0.2)', },
           boxSizing: 'border-box',
           position: 'relative',
+          bgcolor: 'black'
         }}
       >
-        {element.element_type === 'TEXT' ? (
-          isEditing ? (
-            <TextareaAutosize onBlur={handleTextBlur} value={content} onChange={e => setContent(e.target.value)} autoFocus style={editingStyle} />
-          ) : (
-            <Box sx={textStyle}>{element.content}</Box>
-          )
-        ) : element.element_type === 'IMAGE' && element.content ? (
-          <img 
-            src={element.content} 
-            alt="slide element" 
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-            onDragStart={(e) => e.preventDefault()}
-          />
-        ) : null}
+        {isSelected && (element.element_type === 'YOUTUBE_VIDEO' || element.element_type === 'UPLOADED_VIDEO') && (
+            <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, cursor: 'move' }} />
+        )}
+        {renderContent()}
       </Box>
     </Rnd>
   );

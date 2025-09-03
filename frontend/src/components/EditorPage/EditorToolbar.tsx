@@ -4,18 +4,21 @@ import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import ImageIcon from '@mui/icons-material/Image';
+import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../services/apiService';
 import { useNotification } from '../../context/NotificationContext';
+import { SlideElement } from '../../hooks/usePresentation';
 
 interface EditorToolbarProps {
   title: string;
   presentationId: string;
   onRenameClick: () => void;
-  onAddElement: (type: 'TEXT' | 'IMAGE', content?: string) => void;
+  onAddElement: (type: SlideElement['element_type'], content?: string) => void;
+  onAddVideoClick: () => void;
 }
 
-export const EditorToolbar: React.FC<EditorToolbarProps> = ({ title, presentationId, onRenameClick, onAddElement }) => {
+export const EditorToolbar: React.FC<EditorToolbarProps> = ({ title, presentationId, onRenameClick, onAddElement, onAddVideoClick }) => {
   const { token } = useAuth();
   const { showNotification } = useNotification();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +73,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ title, presentatio
           </Tooltip>
           <Tooltip title="Добавить изображение">
             <IconButton onClick={() => fileInputRef.current?.click()}><ImageIcon /></IconButton>
+          </Tooltip>
+          <Tooltip title="Добавить видео">
+            <IconButton onClick={onAddVideoClick}><VideoLibraryIcon /></IconButton>
           </Tooltip>
         </ButtonGroup>
 

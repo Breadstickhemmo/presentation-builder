@@ -1,20 +1,35 @@
 import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, CircularProgress, Typography, Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button } from '@mui/material';
+import { Box, CircularProgress, Typography, Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Tabs, Tab, styled } from '@mui/material';
 import { usePresentation } from '../hooks/usePresentation';
 import { SlideList } from '../components/EditorPage/SlideList';
 import { SlideEditor } from '../components/EditorPage/SlideEditor';
 import { EditorToolbar } from '../components/EditorPage/EditorToolbar';
+import apiClient from '../services/apiService';
+import { useNotification } from '../context/NotificationContext';
 
 const BASE_WIDTH = 1280;
 const BASE_HEIGHT = 720;
 
+const VisuallyHiddenInput = styled('input')({
+    clip: 'rect(0 0 0 0)',
+    clipPath: 'inset(50%)',
+    height: 1,
+    overflow: 'hidden',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    whiteSpace: 'nowrap',
+    width: 1,
+});
+
 export const EditorPage = () => {
   const { presentationId } = useParams<{ presentationId: string }>();
+  const { showNotification } = useNotification();
   const { 
     presentation, loading, activeSlide, 
-    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleReorderSlides,
-    handleRenamePresentation,
+    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleRenamePresentation,
+    handleReorderSlides,
     handleAddElement, handleUpdateElement, handleDeleteElement 
   } = usePresentation(presentationId);
 
@@ -23,6 +38,10 @@ export const EditorPage = () => {
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [videoModalTab, setVideoModalTab] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -58,6 +77,40 @@ export const EditorPage = () => {
     handleCloseRename();
   };
 
+  const handleOpenVideoModal = () => setIsVideoModalOpen(true);
+  const handleCloseVideoModal = () => {
+    setIsVideoModalOpen(false);
+    setVideoUrl('');
+    setVideoModalTab(0);
+    setIsUploading(false);
+  }
+
+  const handleAddYoutubeVideo = () => {
+    if(videoUrl) {
+        handleAddElement('YOUTUBE_VIDEO', videoUrl);
+    }
+    handleCloseVideoModal();
+  }
+
+  const handleVideoFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    setIsUploading(true);
+    try {
+        const response = await apiClient.post('/upload/video', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        handleAddElement('UPLOADED_VIDEO', response.data.url);
+        handleCloseVideoModal();
+    } catch (error) {
+        showNotification('Не удалось загрузить видео', 'error');
+        setIsUploading(false);
+    }
+  };
+
   useLayoutEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
@@ -88,6 +141,7 @@ export const EditorPage = () => {
           presentationId={presentation.id} 
           onRenameClick={handleOpenRename} 
           onAddElement={handleAddElement}
+          onAddVideoClick={handleOpenVideoModal}
         />
         <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
           <SlideList
@@ -134,6 +188,45 @@ export const EditorPage = () => {
           <Button onClick={handleSaveRename}>Сохранить</Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={isVideoModalOpen} onClose={handleCloseVideoModal} fullWidth maxWidth="sm">
+        <DialogTitle>Добавить видео</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Tabs value={videoModalTab} onChange={(_, newValue) => setVideoModalTab(newValue)} centered>
+                <Tab label="YouTube" />
+                <Tab label="Загрузить файл" />
+            </Tabs>
+            {videoModalTab === 0 && (
+                <TextField
+                    autoFocus
+                    margin="dense"
+                    label="Ссылка на видео"
+                    type="url"
+                    fullWidth
+                    variant="standard"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddYoutubeVideo()}
+                />
+            )}
+            {videoModalTab === 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4, border: '2px dashed grey', borderRadius: 2 }}>
+                    <Button
+                        component="label"
+                        variant="contained"
+                        disabled={isUploading}
+                    >
+                        {isUploading ? <CircularProgress size={24} /> : 'Выбрать видеофайл'}
+                        <VisuallyHiddenInput type="file" accept="video/mp4,video/webm" onChange={handleVideoFileUpload} />
+                    </Button>
+                </Box>
+            )}
+        </DialogContent>
+        <DialogActions>
+            <Button onClick={handleCloseVideoModal}>Отмена</Button>
+            {videoModalTab === 0 && <Button onClick={handleAddYoutubeVideo}>Добавить</Button>}
+        </DialogActions>
+    </Dialog>
     </>
   );
 };

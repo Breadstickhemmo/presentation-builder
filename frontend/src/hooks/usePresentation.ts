@@ -1,16 +1,17 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/apiService';
 import { useNotification } from '../context/NotificationContext';
 
 export interface SlideElement {
   id: string;
-  element_type: 'TEXT' | 'IMAGE';
+  element_type: 'TEXT' | 'IMAGE' | 'YOUTUBE_VIDEO' | 'UPLOADED_VIDEO';
   pos_x: number;
   pos_y: number;
   width: number;
   height: number;
   content: string | null;
   font_size: number;
+  thumbnailUrl?: string;
 }
 
 export interface Slide {
@@ -144,13 +145,29 @@ export const usePresentation = (presentationId?: string) => {
     }
   }, [activeSlide, presentation, showNotification]);
 
-  const handleAddElement = async (type: 'TEXT' | 'IMAGE', content?: string) => {
+  const handleAddElement = async (type: SlideElement['element_type'], content?: string) => {
     if (!activeSlide) return;
+  
+    let newElementData;
+    const defaultSize = { width: 640, height: 360 };
 
-    const newElementData = type === 'TEXT'
-      ? { element_type: type, content: 'Новый текст' }
-      : { element_type: type, content: content, width: 640, height: 360 };
-
+    switch (type) {
+      case 'TEXT':
+        newElementData = { element_type: type, content: 'Новый текст' };
+        break;
+      case 'IMAGE':
+        newElementData = { element_type: type, content: content, ...defaultSize };
+        break;
+      case 'YOUTUBE_VIDEO':
+        newElementData = { element_type: type, content: content, ...defaultSize };
+        break;
+      case 'UPLOADED_VIDEO':
+        newElementData = { element_type: type, content: content, ...defaultSize };
+        break;
+      default:
+        return;
+    }
+  
     try {
       const response = await apiClient.post(`/slides/${activeSlide.id}/elements`, newElementData);
       const createdElement = response.data;
@@ -161,7 +178,10 @@ export const usePresentation = (presentationId?: string) => {
         setActiveSlide(newSlides.find(s => s.id === activeSlide.id) || null);
         return { ...prev, slides: newSlides };
       });
-    } catch (error) { showNotification('Не удалось добавить элемент', 'error'); }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Не удалось добавить элемент';
+      showNotification(errorMessage, 'error');
+    }
   };
 
   const handleDeleteElement = async (elementId: string) => {

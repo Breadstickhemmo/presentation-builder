@@ -3,6 +3,7 @@ from flask import request, jsonify, Blueprint, current_app, g, send_file, url_fo
 import jwt
 import io
 import os
+import requests
 from werkzeug.utils import secure_filename
 from pptx import Presentation as PptxPresentation
 from pptx.util import Inches, Pt
@@ -66,6 +67,31 @@ def download_presentation(presentation_id):
                         slide.shapes.add_picture(image_path, left, top, width=width, height=height)
                 except Exception as e:
                     print(f"Could not add image {element.content}: {e}")
+            
+            elif element.element_type == 'YOUTUBE_VIDEO' and element.content:
+                try:
+                    thumbnail_url = f"https://img.youtube.com/vi/{element.content}/maxresdefault.jpg"
+                    response = requests.get(thumbnail_url, stream=True)
+                    response.raise_for_status()
+                    image_stream = io.BytesIO(response.content)
+                    
+                    pic = slide.shapes.add_picture(image_stream, left, top, width=width, height=height)
+                    
+                    hlink = pic.click_action.hyperlink
+                    hlink.address = f"https://www.youtube.com/watch?v={element.content}"
+                    
+                except Exception as e:
+                    print(f"Could not add video thumbnail for {element.content}: {e}")
+            
+            elif element.element_type == 'UPLOADED_VIDEO' and element.content:
+                # В PPTX вставляем заглушку-текст со ссылкой на видео
+                txBox = slide.shapes.add_textbox(left, top, width, height)
+                p = txBox.text_frame.paragraphs[0]
+                run = p.add_run()
+                run.text = "Видеофайл (нажмите для просмотра)"
+                
+                hlink = run.hyperlink
+                hlink.address = element.content
 
 
     file_stream = io.BytesIO()
@@ -114,15 +140,28 @@ def create_presentation():
 @token_required
 def get_presentation_by_id(presentation_id):
     presentation = Presentation.query.get_or_404(presentation_id)
-    if presentation.user_id != g.current_user.id: return jsonify({'message': 'Доступ запрещен'}), 403
-    
+    if presentation.user_id != g.current_user.id:
+        return jsonify({'message': 'Доступ запрещен'}), 403
+
     slides_output = []
     slides = Slide.query.filter_by(presentation_id=presentation.id).order_by(Slide.slide_number).all()
     for slide in slides:
+        elements_output = []
         elements = SlideElement.query.filter_by(slide_id=slide.id).all()
-        elements_output = [{'id': e.id, 'element_type': e.element_type, 'pos_x': e.pos_x, 'pos_y': e.pos_y, 'width': e.width, 'height': e.height, 'content': e.content, 'font_size': e.font_size} for e in elements]
-        slides_output.append({'id': slide.id, 'slide_number': slide.slide_number, 'background_color': slide.background_color, 'elements': elements_output})
-        
+        for e in elements:
+            element_data = {
+                'id': e.id, 'element_type': e.element_type, 'pos_x': e.pos_x,
+                'pos_y': e.pos_y, 'width': e.width, 'height': e.height,
+                'content': e.content, 'font_size': e.font_size
+            }
+            if e.element_type == 'YOUTUBE_VIDEO':
+                element_data['thumbnailUrl'] = f"https://img.youtube.com/vi/{e.content}/0.jpg"
+            elements_output.append(element_data)
+        slides_output.append({
+            'id': slide.id, 'slide_number': slide.slide_number,
+            'background_color': slide.background_color, 'elements': elements_output
+        })
+
     return jsonify({'id': presentation.id, 'title': presentation.title, 'slides': slides_output}), 200
 
 @presentations_bp.route('/presentations', methods=['GET'])
@@ -191,6 +230,22 @@ def update_presentation(presentation_id):
 @presentations_bp.route('/upload/image', methods=['POST'])
 @token_required
 def upload_image():
+    if 'file' not in request.files:
+        return jsonify({'message': 'Файл не найден'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'message': 'Файл не выбран'}), 400
+    if file:
+        filename = secure_filename(file.filename)
+        os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+        save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        file.save(save_path)
+        file_url = url_for('static', filename=f'uploads/{filename}', _external=True)
+        return jsonify({'url': file_url}), 200
+
+@presentations_bp.route('/upload/video', methods=['POST'])
+@token_required
+def upload_video():
     if 'file' not in request.files:
         return jsonify({'message': 'Файл не найден'}), 400
     file = request.files['file']
