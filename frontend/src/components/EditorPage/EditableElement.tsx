@@ -75,7 +75,7 @@ export const EditableElement: React.FC<EditableElementProps> = ({ element, scale
       }}
     >
       <Box
-        onDoubleClick={() => setIsEditing(true)}
+        onDoubleClick={() => element.element_type === 'TEXT' && setIsEditing(true)}
         sx={{
           width: '100%',
           height: '100%',
@@ -86,11 +86,20 @@ export const EditableElement: React.FC<EditableElementProps> = ({ element, scale
           position: 'relative',
         }}
       >
-        {isEditing ? (
-          <TextareaAutosize onBlur={handleTextBlur} value={content} onChange={e => setContent(e.target.value)} autoFocus style={editingStyle} />
-        ) : (
-          <Box sx={textStyle}>{element.content}</Box>
-        )}
+        {element.element_type === 'TEXT' ? (
+          isEditing ? (
+            <TextareaAutosize onBlur={handleTextBlur} value={content} onChange={e => setContent(e.target.value)} autoFocus style={editingStyle} />
+          ) : (
+            <Box sx={textStyle}>{element.content}</Box>
+          )
+        ) : element.element_type === 'IMAGE' && element.content ? (
+          <img 
+            src={element.content} 
+            alt="slide element" 
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            onDragStart={(e) => e.preventDefault()}
+          />
+        ) : null}
       </Box>
     </Rnd>
   );

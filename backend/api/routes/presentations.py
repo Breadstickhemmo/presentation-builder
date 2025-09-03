@@ -1,7 +1,9 @@
 from functools import wraps
-from flask import request, jsonify, Blueprint, current_app, g, send_file
+from flask import request, jsonify, Blueprint, current_app, g, send_file, url_for
 import jwt
 import io
+import os
+from werkzeug.utils import secure_filename
 from pptx import Presentation as PptxPresentation
 from pptx.util import Inches, Pt
 from ..models import User, Presentation, Slide, SlideElement
@@ -43,18 +45,28 @@ def download_presentation(presentation_id):
     for slide_data in slides:
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         for element in slide_data.elements:
+            left = Inches(px_to_inches(element.pos_x))
+            top = Inches(px_to_inches(element.pos_y))
+            width = Inches(px_to_inches(element.width))
+            height = Inches(px_to_inches(element.height))
+
             if element.element_type == 'TEXT':
-                left = Inches(px_to_inches(element.pos_x))
-                top = Inches(px_to_inches(element.pos_y))
-                width = Inches(px_to_inches(element.width))
-                height = Inches(px_to_inches(element.height))
-                
                 txBox = slide.shapes.add_textbox(left, top, width, height)
                 tf = txBox.text_frame
                 tf.text = element.content or ""
                 tf.word_wrap = True
                 if tf.paragraphs:
                     tf.paragraphs[0].font.size = Pt(element.font_size or 24)
+            
+            elif element.element_type == 'IMAGE' and element.content:
+                try:
+                    filename = element.content.split('/')[-1]
+                    image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    if os.path.exists(image_path):
+                        slide.shapes.add_picture(image_path, left, top, width=width, height=height)
+                except Exception as e:
+                    print(f"Could not add image {element.content}: {e}")
+
 
     file_stream = io.BytesIO()
     prs.save(file_stream)
@@ -175,3 +187,19 @@ def update_presentation(presentation_id):
         'updated_at': presentation.updated_at.isoformat(),
         'first_slide': first_slide_data
     }), 200
+
+@presentations_bp.route('/upload/image', methods=['POST'])
+@token_required
+def upload_image():
+    if 'file' not in request.files:
+        return jsonify({'message': 'Файл не найден'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'message': 'Файл не выбран'}), 400
+    if file:
+        filename = secure_filename(file.filename)
+        os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+        save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        file.save(save_path)
+        file_url = url_for('static', filename=f'uploads/{filename}', _external=True)
+        return jsonify({'url': file_url}), 200

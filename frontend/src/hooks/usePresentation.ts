@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../services/apiService';
 import { useNotification } from '../context/NotificationContext';
 
 export interface SlideElement {
   id: string;
-  element_type: 'TEXT' | 'IMAGE' | 'VIDEO';
+  element_type: 'TEXT' | 'IMAGE';
   pos_x: number;
   pos_y: number;
   width: number;
@@ -57,21 +57,6 @@ export const usePresentation = (presentationId?: string) => {
     if (slide) setActiveSlide(slide);
   };
 
-    const handleReorderSlides = useCallback(async (reorderedSlides: Slide[]) => {
-    if (!presentation) return;
-
-    const originalSlides = presentation.slides;
-    setPresentation(prev => prev ? { ...prev, slides: reorderedSlides } : null);
-
-    const slideIds = reorderedSlides.map(s => s.id);
-    try {
-      await apiClient.put(`/presentations/${presentation.id}/slides/reorder`, { slide_ids: slideIds });
-    } catch (error) {
-      showNotification('Не удалось сохранить порядок', 'error');
-      setPresentation(prev => prev ? { ...prev, slides: originalSlides } : null);
-    }
-  }, [presentation, showNotification]);
-
   const handleAddSlide = async () => {
     if (!presentationId) return;
     try {
@@ -112,6 +97,22 @@ export const usePresentation = (presentationId?: string) => {
       showNotification(errorMessage, 'error');
     }
   };
+  
+  const handleReorderSlides = useCallback(async (reorderedSlides: Slide[]) => {
+    if (!presentation) return;
+
+    const originalSlides = presentation.slides;
+    setPresentation(prev => prev ? { ...prev, slides: reorderedSlides } : null);
+
+    const slideIds = reorderedSlides.map(s => s.id);
+    try {
+      await apiClient.put(`/presentations/${presentation.id}/slides/reorder`, { slide_ids: slideIds });
+    } catch (error) {
+      showNotification('Не удалось сохранить порядок', 'error');
+      setPresentation(prev => prev ? { ...prev, slides: originalSlides } : null);
+    }
+  }, [presentation, showNotification]);
+
 
   const handleRenamePresentation = useCallback(async (newTitle: string) => {
     if (!presentation) return;
@@ -143,29 +144,20 @@ export const usePresentation = (presentationId?: string) => {
     }
   }, [activeSlide, presentation, showNotification]);
 
-  const handleAddElement = async (type: 'TEXT') => {
+  const handleAddElement = async (type: 'TEXT' | 'IMAGE', content?: string) => {
     if (!activeSlide) return;
-    const newElementDefaults = {
-      element_type: type,
-      content: 'Новый текст',
-      pos_x: 100,
-      pos_y: 100,
-      width: 400,
-      height: 150,
-      font_size: 24,
-    };
+
+    const newElementData = type === 'TEXT'
+      ? { element_type: type, content: 'Новый текст' }
+      : { element_type: type, content: content, width: 640, height: 360 };
+
     try {
-      const response = await apiClient.post(`/slides/${activeSlide.id}/elements`, { 
-        element_type: type, 
-        content: 'Новый текст' 
-      });
-      const createdElementFromServer = response.data;
-      
-      const finalElement = { ...newElementDefaults, ...createdElementFromServer };
+      const response = await apiClient.post(`/slides/${activeSlide.id}/elements`, newElementData);
+      const createdElement = response.data;
       
       setPresentation(prev => {
         if (!prev) return null;
-        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: [...s.elements, finalElement] } : s); // Используем finalElement
+        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: [...s.elements, createdElement] } : s);
         setActiveSlide(newSlides.find(s => s.id === activeSlide.id) || null);
         return { ...prev, slides: newSlides };
       });
@@ -187,8 +179,8 @@ export const usePresentation = (presentationId?: string) => {
 
   return { 
     presentation, loading, activeSlide, 
-    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleReorderSlides,
-    handleRenamePresentation,
+    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleRenamePresentation,
+    handleReorderSlides,
     handleAddElement, handleUpdateElement, handleDeleteElement
   };
 };

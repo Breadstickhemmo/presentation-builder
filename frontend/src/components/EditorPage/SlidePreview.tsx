@@ -28,15 +28,30 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ slide }) => {
             top: element.pos_y,
             width: element.width,
             height: element.height,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            fontSize: element.font_size,
-            overflow: 'hidden',
             boxSizing: 'border-box',
-            p: '8px'
           }}
         >
-          {element.content}
+          {element.element_type === 'IMAGE' && element.content ? (
+            <img 
+              src={element.content} 
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          ) : (
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                fontSize: element.font_size,
+                overflow: 'hidden',
+                p: '8px'
+              }}
+            >
+              {element.content}
+            </Box>
+          )}
         </Box>
       ))}
     </Paper>
