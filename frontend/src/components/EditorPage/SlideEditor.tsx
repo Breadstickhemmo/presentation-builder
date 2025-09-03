@@ -6,11 +6,12 @@ import { EditableElement } from './EditableElement';
 interface SlideEditorProps {
   slide: Slide | null;
   scale: number;
+  selectedElementId: string | null;
+  onSelectElement: (id: string | null) => void;
   onUpdateElement: (id: string, data: Partial<SlideElement>) => void;
-  onDeleteElement: (id: string) => void;
 }
 
-export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, scale, onUpdateElement, onDeleteElement }) => {
+export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, scale, selectedElementId, onSelectElement, onUpdateElement }) => {
   if (!slide) {
     return (
       <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -22,6 +23,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, scale, onUpdate
   return (
     <Paper
       elevation={3}
+      onClick={() => onSelectElement(null)}
       sx={{
         width: 1280,
         height: 720,
@@ -35,8 +37,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, scale, onUpdate
           key={element.id} 
           element={element}
           scale={scale}
+          isSelected={element.id === selectedElementId}
+          onSelect={onSelectElement}
           onUpdate={onUpdateElement}
-          onDelete={onDeleteElement}
         />
       ))}
     </Paper>

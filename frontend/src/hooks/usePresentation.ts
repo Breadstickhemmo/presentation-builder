@@ -10,6 +10,7 @@ export interface SlideElement {
   width: number;
   height: number;
   content: string | null;
+  font_size: number;
 }
 
 export interface Slide {
@@ -56,21 +57,53 @@ export const usePresentation = (presentationId?: string) => {
     if (slide) setActiveSlide(slide);
   };
 
-  const handleAddElement = async (type: 'TEXT') => {
-    if (!activeSlide) return;
-    const newElementData = { element_type: type, content: 'Новый текст' };
+  const handleAddSlide = async () => {
+    if (!presentationId) return;
     try {
-      const response = await apiClient.post(`/slides/${activeSlide.id}/elements`, newElementData);
-      const createdElement = response.data;
-      
-      setPresentation(prev => {
-        if (!prev) return null;
-        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: [...s.elements, createdElement] } : s);
-        setActiveSlide(newSlides.find(s => s.id === activeSlide.id) || null);
-        return { ...prev, slides: newSlides };
-      });
-    } catch (error) { showNotification('Не удалось добавить элемент', 'error'); }
+      const response = await apiClient.post(`/presentations/${presentationId}/slides`);
+      const newSlide = response.data;
+      setPresentation(prev => prev ? { ...prev, slides: [...prev.slides, newSlide] } : null);
+      setActiveSlide(newSlide);
+      showNotification('Слайд добавлен', 'success');
+    } catch (error) {
+      showNotification('Не удалось добавить слайд', 'error');
+    }
   };
+
+  const handleDeleteSlide = async (slideId: number) => {
+    if (!presentation) return;
+    try {
+      await apiClient.delete(`/slides/${slideId}`);
+      showNotification('Слайд удален', 'success');
+
+      const oldSlides = presentation.slides;
+      const slideToDeleteIndex = oldSlides.findIndex(s => s.id === slideId);
+      
+      const newSlides = oldSlides.filter(s => s.id !== slideId);
+
+      if (activeSlide?.id === slideId) {
+        const newActiveIndex = Math.max(0, slideToDeleteIndex - 1);
+        setActiveSlide(newSlides.length > 0 ? newSlides[newActiveIndex] : null);
+      }
+      
+      setPresentation({ ...presentation, slides: newSlides });
+
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Не удалось удалить слайд';
+      showNotification(errorMessage, 'error');
+    }
+  };
+
+  const handleRenamePresentation = useCallback(async (newTitle: string) => {
+    if (!presentation) return;
+    try {
+      await apiClient.put(`/presentations/${presentation.id}`, { title: newTitle });
+      setPresentation(prev => prev ? { ...prev, title: newTitle } : null);
+      showNotification('Презентация переименована', 'success');
+    } catch (error) {
+      showNotification('Не удалось переименовать', 'error');
+    }
+  }, [presentation, showNotification]);
 
   const handleUpdateElement = useCallback(async (elementId: string, data: Partial<SlideElement>) => {
     if (!activeSlide) return;
@@ -91,6 +124,22 @@ export const usePresentation = (presentationId?: string) => {
     }
   }, [activeSlide, presentation, showNotification]);
 
+  const handleAddElement = async (type: 'TEXT') => {
+    if (!activeSlide) return;
+    const newElementData = { element_type: type, content: 'Новый текст' };
+    try {
+      const response = await apiClient.post(`/slides/${activeSlide.id}/elements`, newElementData);
+      const createdElement = response.data;
+      
+      setPresentation(prev => {
+        if (!prev) return null;
+        const newSlides = prev.slides.map(s => s.id === activeSlide.id ? { ...s, elements: [...s.elements, createdElement] } : s);
+        setActiveSlide(newSlides.find(s => s.id === activeSlide.id) || null);
+        return { ...prev, slides: newSlides };
+      });
+    } catch (error) { showNotification('Не удалось добавить элемент', 'error'); }
+  };
+
   const handleDeleteElement = async (elementId: string) => {
     if (!activeSlide) return;
     try {
@@ -103,45 +152,6 @@ export const usePresentation = (presentationId?: string) => {
       });
     } catch (error) { showNotification('Не удалось удалить элемент', 'error'); }
   };
-  
-  const handleAddSlide = async () => {
-    try {
-      const response = await apiClient.post(`/presentations/${presentationId}/slides`);
-      const newSlide = response.data;
-      setPresentation(prev => prev ? { ...prev, slides: [...prev.slides, newSlide] } : null);
-      setActiveSlide(newSlide);
-      showNotification('Слайд добавлен', 'success');
-    } catch (error) { showNotification('Не удалось добавить слайд', 'error'); }
-  };
-
-  const handleDeleteSlide = async (slideId: number) => {
-    try {
-      await apiClient.delete(`/slides/${slideId}`);
-      showNotification('Слайд удален', 'success');
-      setPresentation(prev => {
-        if (!prev) return null;
-        const newSlides = prev.slides.filter(s => s.id !== slideId);
-        if (activeSlide?.id === slideId) {
-          setActiveSlide(newSlides.length > 0 ? newSlides[0] : null);
-        }
-        return { ...prev, slides: newSlides };
-      });
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Не удалось удалить слайд';
-      showNotification(errorMessage, 'error');
-    }
-  };
-  
-  const handleRenamePresentation = useCallback(async (newTitle: string) => {
-    if (!presentation) return;
-    try {
-      await apiClient.put(`/presentations/${presentation.id}`, { title: newTitle });
-      setPresentation(prev => prev ? { ...prev, title: newTitle } : null);
-      showNotification('Презентация переименована', 'success');
-    } catch (error) {
-      showNotification('Не удалось переименовать', 'error');
-    }
-  }, [presentation, showNotification]);
 
   return { 
     presentation, loading, activeSlide, 

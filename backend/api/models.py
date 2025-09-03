@@ -32,4 +32,5 @@ class SlideElement(db.Model):
     width = db.Column(db.Integer, nullable=False, default=400)
     height = db.Column(db.Integer, nullable=False, default=150)
     content = db.Column(db.Text, nullable=True)
+    font_size = db.Column(db.Integer, nullable=False, default=24)
     slide_id = db.Column(db.Integer, db.ForeignKey('slide.id'), nullable=False)

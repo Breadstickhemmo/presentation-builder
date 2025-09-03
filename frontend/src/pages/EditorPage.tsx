@@ -1,4 +1,4 @@
-import React, { useRef, useState, useLayoutEffect } from 'react';
+import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, CircularProgress, Typography, Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button } from '@mui/material';
 import { usePresentation } from '../hooks/usePresentation';
@@ -12,22 +12,36 @@ const BASE_HEIGHT = 720;
 export const EditorPage = () => {
   const { presentationId } = useParams<{ presentationId: string }>();
   const { 
-    presentation, 
-    loading, 
-    activeSlide, 
-    handleSelectSlide, 
-    handleAddSlide, 
-    handleDeleteSlide,
-    handleRenamePresentation,
-    handleAddElement,
-    handleUpdateElement,
-    handleDeleteElement
+    presentation, loading, activeSlide, 
+    handleSelectSlide, handleAddSlide, handleDeleteSlide, handleRenamePresentation,
+    handleAddElement, handleUpdateElement, handleDeleteElement 
   } = usePresentation(presentationId);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (['TEXTAREA', 'INPUT'].includes(target.tagName)) {
+        return;
+      }
+
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedElementId) {
+        handleDeleteElement(selectedElementId);
+        setSelectedElementId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedElementId, handleDeleteElement]);
+
+  useEffect(() => {
+    setSelectedElementId(null);
+  }, [activeSlide]);
 
   const handleOpenRename = () => {
     if (presentation) {
@@ -90,8 +104,9 @@ export const EditorPage = () => {
               <SlideEditor 
                 slide={activeSlide} 
                 scale={scale}
+                selectedElementId={selectedElementId}
+                onSelectElement={setSelectedElementId}
                 onUpdateElement={handleUpdateElement}
-                onDeleteElement={handleDeleteElement}
               />
             </Box>
           </Box>
@@ -100,7 +115,17 @@ export const EditorPage = () => {
       <Dialog open={isRenameOpen} onClose={handleCloseRename} fullWidth maxWidth="xs">
         <DialogTitle>Переименовать презентацию</DialogTitle>
         <DialogContent>
-          <TextField autoFocus margin="dense" label="Название презентации" type="text" fullWidth variant="standard" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSaveRename()} />
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Название презентации"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSaveRename()}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseRename}>Отмена</Button>

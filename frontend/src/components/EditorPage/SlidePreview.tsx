@@ -28,12 +28,12 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ slide }) => {
             top: element.pos_y,
             width: element.width,
             height: element.height,
-            p: 1,
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
-            fontSize: '24px',
+            fontSize: element.font_size,
             overflow: 'hidden',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            p: '8px'
           }}
         >
           {element.content}
