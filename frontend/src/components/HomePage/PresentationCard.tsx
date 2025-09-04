@@ -20,9 +20,10 @@ interface PresentationCardProps {
   onUpdate: (presentation: Presentation) => void;
 }
 
-const THUMBNAIL_CONTAINER_HEIGHT = 140;
-const BASE_SLIDE_HEIGHT = 720;
-const SCALE_FACTOR = THUMBNAIL_CONTAINER_HEIGHT / BASE_SLIDE_HEIGHT;
+const BASE_SLIDE_WIDTH = 1280; 
+const THUMBNAIL_WIDTH = 270; 
+const SCALE_FACTOR = THUMBNAIL_WIDTH / BASE_SLIDE_WIDTH;
+
 
 export const PresentationCard: React.FC<PresentationCardProps> = ({ presentation, onDelete, onUpdate }) => {
   const { showNotification } = useNotification();
@@ -89,8 +90,8 @@ export const PresentationCard: React.FC<PresentationCardProps> = ({ presentation
              <Box sx={{
                 transform: `scale(${SCALE_FACTOR})`,
                 transformOrigin: 'top left',
-                width: BASE_SLIDE_HEIGHT * (16 / 9),
-                height: BASE_SLIDE_HEIGHT,
+                width: BASE_SLIDE_WIDTH,
+                height: BASE_SLIDE_WIDTH * (9 / 16),
               }}>
                 <SlidePreview slide={presentation.first_slide} />
               </Box>

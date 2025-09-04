@@ -84,7 +84,6 @@ def download_presentation(presentation_id):
                     print(f"Could not add video thumbnail for {element.content}: {e}")
             
             elif element.element_type == 'UPLOADED_VIDEO' and element.content:
-                # В PPTX вставляем заглушку-текст со ссылкой на видео
                 txBox = slide.shapes.add_textbox(left, top, width, height)
                 p = txBox.text_frame.paragraphs[0]
                 run = p.add_run()
@@ -171,16 +170,26 @@ def get_presentations():
     output = []
     for p in presentations:
         first_slide = Slide.query.filter_by(presentation_id=p.id, slide_number=1).first()
+        first_slide_data = None
         if first_slide:
             elements = SlideElement.query.filter_by(slide_id=first_slide.id).all()
+            elements_output = []
+            for e in elements:
+                element_data = {
+                    'id': e.id, 'element_type': e.element_type, 'pos_x': e.pos_x,
+                    'pos_y': e.pos_y, 'width': e.width, 'height': e.height,
+                    'content': e.content, 'font_size': e.font_size
+                }
+                if e.element_type == 'YOUTUBE_VIDEO':
+                    element_data['thumbnailUrl'] = f"https://img.youtube.com/vi/{e.content}/0.jpg"
+                elements_output.append(element_data)
+            
             first_slide_data = {
                 'id': first_slide.id,
                 'slide_number': first_slide.slide_number,
                 'background_color': first_slide.background_color,
-                'elements': [{'id': e.id, 'element_type': e.element_type, 'pos_x': e.pos_x, 'pos_y': e.pos_y, 'width': e.width, 'height': e.height, 'content': e.content, 'font_size': e.font_size} for e in elements]
+                'elements': elements_output
             }
-        else:
-            first_slide_data = None
         
         output.append({
             'id': p.id,

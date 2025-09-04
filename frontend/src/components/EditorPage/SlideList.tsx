@@ -59,6 +59,7 @@ const SortableSlideItem = ({ slide, index, activeSlideId, onSelectSlide, onDelet
             borderColor: slide.id === activeSlideId ? 'primary.main' : 'divider',
             aspectRatio: '16 / 9',
             overflow: 'hidden',
+            display: 'block',
           }}
         >
           <Box sx={{

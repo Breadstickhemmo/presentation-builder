@@ -53,7 +53,8 @@ export const EditableElement: React.FC<EditableElementProps> = ({ element, scale
     onUpdate(element.id, {
       width: parseInt(ref.style.width, 10),
       height: parseInt(ref.style.height, 10),
-      ...position,
+      pos_x: position.x,
+      pos_y: position.y,
     });
   };
 
@@ -130,7 +131,7 @@ export const EditableElement: React.FC<EditableElementProps> = ({ element, scale
           '&:hover': { borderColor: isSelected ? 'primary.main' : 'rgba(0,0,0,0.2)', },
           boxSizing: 'border-box',
           position: 'relative',
-          bgcolor: 'black'
+          bgcolor: element.element_type.includes('VIDEO') ? 'black' : 'transparent',
         }}
       >
         {isSelected && (element.element_type === 'YOUTUBE_VIDEO' || element.element_type === 'UPLOADED_VIDEO') && (
