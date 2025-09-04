@@ -1,7 +1,7 @@
-import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
+import React, { useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, CircularProgress, Typography, Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Tabs, Tab, styled } from '@mui/material';
-import { usePresentation } from '../hooks/usePresentation';
+import { usePresentation, SlideElement } from '../hooks/usePresentation';
 import { SlideList } from '../components/EditorPage/SlideList';
 import { SlideEditor } from '../components/EditorPage/SlideEditor';
 import { EditorToolbar } from '../components/EditorPage/EditorToolbar';
@@ -30,18 +30,38 @@ export const EditorPage = () => {
     presentation, loading, activeSlide, 
     handleSelectSlide, handleAddSlide, handleDeleteSlide, handleRenamePresentation,
     handleReorderSlides,
-    handleAddElement, handleUpdateElement, handleDeleteElement 
+    handleAddElement, handleUpdateElement, handleDeleteElement, handleUpdateMultipleElements
   } = usePresentation(presentationId);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const slideEditorRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  
+  const [selectedElementIds, setSelectedElementIds] = useState<string[]>([]);
+  
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
   const [videoModalTab, setVideoModalTab] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+
+  const [isDrawingSelection, setIsDrawingSelection] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
+  const [selectionRect, setSelectionRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [dragStartPositions, setDragStartPositions] = useState<Record<string, {x: number, y: number}>>({});
+
+  const handleSelectElement = useCallback((elementId: string | null, event?: React.MouseEvent) => {
+    if (event?.shiftKey && elementId) {
+      setSelectedElementIds(prevIds => 
+        prevIds.includes(elementId) 
+          ? prevIds.filter(id => id !== elementId)
+          : [...prevIds, elementId]
+      );
+    } else {
+      setSelectedElementIds(elementId ? [elementId] : []);
+    }
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -50,17 +70,17 @@ export const EditorPage = () => {
         return;
       }
 
-      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedElementId) {
-        handleDeleteElement(selectedElementId);
-        setSelectedElementId(null);
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedElementIds.length > 0) {
+        selectedElementIds.forEach(id => handleDeleteElement(id));
+        setSelectedElementIds([]);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedElementId, handleDeleteElement]);
+  }, [selectedElementIds, handleDeleteElement]);
 
   useEffect(() => {
-    setSelectedElementId(null);
+    setSelectedElementIds([]);
   }, [activeSlide]);
 
   const handleOpenRename = () => {
@@ -111,6 +131,113 @@ export const EditorPage = () => {
     }
   };
 
+  const isElementInSelection = (element: SlideElement, selection: { x: number; y: number; width: number; height: number }): boolean => {
+    const elementRect = {
+        x: element.pos_x,
+        y: element.pos_y,
+        width: element.width,
+        height: element.height
+    };
+    return (
+        elementRect.x < selection.x + selection.width &&
+        elementRect.x + elementRect.width > selection.x &&
+        elementRect.y < selection.y + selection.height &&
+        elementRect.y + elementRect.height > selection.y
+    );
+  };
+  
+  const handleMouseDown = (event: React.MouseEvent) => {
+    if (event.target !== slideEditorRef.current) return;
+    event.preventDefault();
+    handleSelectElement(null);
+    setIsDrawingSelection(true);
+    const rect = slideEditorRef.current.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / scale;
+    const y = (event.clientY - rect.top) / scale;
+    setSelectionStart({ x, y });
+  };
+  
+  const handleMouseMove = (event: React.MouseEvent) => {
+    if (!isDrawingSelection || !selectionStart) return;
+    event.preventDefault();
+    const rect = slideEditorRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const currentX = (event.clientX - rect.left) / scale;
+    const currentY = (event.clientY - rect.top) / scale;
+    const x = Math.min(currentX, selectionStart.x);
+    const y = Math.min(currentY, selectionStart.y);
+    const width = Math.abs(currentX - selectionStart.x);
+    const height = Math.abs(currentY - selectionStart.y);
+    setSelectionRect({ x, y, width, height });
+  };
+
+  const handleMouseUp = () => {
+    if (isDrawingSelection && selectionRect) {
+      const selectedIds = activeSlide?.elements
+        .filter(element => isElementInSelection(element, selectionRect))
+        .map(element => element.id) || [];
+      setSelectedElementIds(selectedIds);
+    }
+    setIsDrawingSelection(false);
+    setSelectionStart(null);
+    setSelectionRect(null);
+  };
+  
+  const handleDragStart = (elementId: string) => {
+    const elements = activeSlide?.elements;
+    if (!elements) return;
+
+    const idsToDrag = selectedElementIds.includes(elementId) ? selectedElementIds : [elementId];
+    if (!selectedElementIds.includes(elementId)) {
+        setSelectedElementIds([elementId]);
+    }
+    
+    const positions: Record<string, {x: number, y: number}> = {};
+    elements.forEach(el => {
+        if (idsToDrag.includes(el.id)) {
+            positions[el.id] = { x: el.pos_x, y: el.pos_y };
+        }
+    });
+    setDragStartPositions(positions);
+  };
+
+  const handleDrag = (draggedElementId: string, newPosition: { x: number, y: number }) => {
+    const startPos = dragStartPositions[draggedElementId];
+    if (!startPos) return;
+
+    const totalDeltaX = newPosition.x - startPos.x;
+    const totalDeltaY = newPosition.y - startPos.y;
+
+    const updatedPositions: Record<string, Partial<SlideElement>> = {};
+    
+    Object.keys(dragStartPositions).forEach(id => {
+        updatedPositions[id] = {
+            pos_x: dragStartPositions[id].x + totalDeltaX,
+            pos_y: dragStartPositions[id].y + totalDeltaY
+        };
+    });
+
+    handleUpdateMultipleElements(updatedPositions, false);
+  };
+
+  const handleDragStop = (elementId: string, finalPos: {x: number, y: number}) => {
+    const startPos = dragStartPositions[elementId];
+    if (!startPos) return;
+
+    const deltaX = finalPos.x - startPos.x;
+    const deltaY = finalPos.y - startPos.y;
+
+    const updatedPositions: Record<string, Partial<SlideElement>> = {};
+    Object.keys(dragStartPositions).forEach(id => {
+        updatedPositions[id] = {
+            pos_x: dragStartPositions[id].x + deltaX,
+            pos_y: dragStartPositions[id].y + deltaY
+        };
+    });
+    handleUpdateMultipleElements(updatedPositions, true);
+    setDragStartPositions({});
+  };
+
   useLayoutEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
@@ -143,7 +270,7 @@ export const EditorPage = () => {
           onAddElement={handleAddElement}
           onAddVideoClick={handleOpenVideoModal}
         />
-        <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} >
           <SlideList
             slides={presentation.slides}
             activeSlideId={activeSlide?.id || null}
@@ -156,14 +283,35 @@ export const EditorPage = () => {
             ref={containerRef}
             sx={{ flexGrow: 1, backgroundColor: 'grey.200', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
           >
-            <Box sx={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
+            <Box sx={{ transform: `scale(${scale})`, transformOrigin: 'center center', position: 'relative' }}>
               <SlideEditor 
+                ref={slideEditorRef}
                 slide={activeSlide} 
                 scale={scale}
-                selectedElementId={selectedElementId}
-                onSelectElement={setSelectedElementId}
+                selectedElementIds={selectedElementIds}
+                onSelectElement={handleSelectElement}
                 onUpdateElement={handleUpdateElement}
+                onMouseDown={handleMouseDown}
+                onDragStart={handleDragStart}
+                onDrag={handleDrag}
+                onDragStop={handleDragStop}
               />
+              {isDrawingSelection && selectionRect && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    border: '1px solid',
+                    borderColor: 'primary.main',
+                    backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                    left: selectionRect.x,
+                    top: selectionRect.y,
+                    width: selectionRect.width,
+                    height: selectionRect.height,
+                    pointerEvents: 'none',
+                    transformOrigin: 'top left',
+                  }}
+                />
+              )}
             </Box>
           </Box>
         </Box>

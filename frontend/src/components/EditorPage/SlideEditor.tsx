@@ -6,12 +6,19 @@ import { EditableElement } from './EditableElement';
 interface SlideEditorProps {
   slide: Slide | null;
   scale: number;
-  selectedElementId: string | null;
-  onSelectElement: (id: string | null) => void;
+  selectedElementIds: string[];
+  onSelectElement: (id: string | null, event?: React.MouseEvent) => void;
   onUpdateElement: (id: string, data: Partial<SlideElement>) => void;
+  onMouseDown: (event: React.MouseEvent) => void;
+  onDragStart: (id: string) => void;
+  onDrag: (id: string, newPosition: { x: number, y: number }) => void;
+  onDragStop: (id: string, finalPos: { x: number, y: number }) => void;
 }
 
-export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, scale, selectedElementId, onSelectElement, onUpdateElement }) => {
+export const SlideEditor = React.forwardRef<HTMLDivElement, SlideEditorProps>(({ 
+    slide, scale, selectedElementIds, onSelectElement, onUpdateElement,
+    onMouseDown, onDragStart, onDrag, onDragStop
+}, ref) => {
   if (!slide) {
     return (
       <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -22,14 +29,16 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, scale, selected
 
   return (
     <Paper
+      ref={ref}
       elevation={3}
-      onClick={() => onSelectElement(null)}
+      onMouseDown={onMouseDown}
       sx={{
         width: 1280,
         height: 720,
         position: 'relative',
         bgcolor: slide.background_color,
         overflow: 'hidden',
+        userSelect: 'none'
       }}
     >
       {slide.elements.map(element => (
@@ -37,11 +46,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({ slide, scale, selected
           key={element.id} 
           element={element}
           scale={scale}
-          isSelected={element.id === selectedElementId}
+          isSelected={selectedElementIds.includes(element.id)}
           onSelect={onSelectElement}
           onUpdate={onUpdateElement}
+          onDragStart={onDragStart}
+          onDrag={onDrag}
+          onDragStop={onDragStop}
         />
       ))}
     </Paper>
   );
-};
+});

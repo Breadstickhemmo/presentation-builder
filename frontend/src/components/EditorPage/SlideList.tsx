@@ -29,7 +29,7 @@ interface SlideListProps {
   onReorderSlides: (reorderedSlides: Slide[]) => void;
 }
 
-const THUMBNAIL_WIDTH = 150;
+const THUMBNAIL_WIDTH = 140;
 const BASE_SLIDE_WIDTH = 1280;
 const SCALE_FACTOR = THUMBNAIL_WIDTH / BASE_SLIDE_WIDTH;
 

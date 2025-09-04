@@ -7,12 +7,15 @@ import requests
 from werkzeug.utils import secure_filename
 from pptx import Presentation as PptxPresentation
 from pptx.util import Inches, Pt
+import uuid
+from PIL import Image
+import ffmpeg
 from ..models import User, Presentation, Slide, SlideElement
 from ..extensions import db
 
 presentations_bp = Blueprint('presentations', __name__)
 
-PIXELS_PER_INCH = 96.0
+PIXELS_PER_INCH = 80.0
 
 def px_to_inches(px):
     return px / PIXELS_PER_INCH
@@ -46,13 +49,13 @@ def download_presentation(presentation_id):
     for slide_data in slides:
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         for element in slide_data.elements:
-            left = Inches(px_to_inches(element.pos_x))
-            top = Inches(px_to_inches(element.pos_y))
-            width = Inches(px_to_inches(element.width))
-            height = Inches(px_to_inches(element.height))
+            container_left = Inches(px_to_inches(element.pos_x))
+            container_top = Inches(px_to_inches(element.pos_y))
+            container_width = Inches(px_to_inches(element.width))
+            container_height = Inches(px_to_inches(element.height))
 
             if element.element_type == 'TEXT':
-                txBox = slide.shapes.add_textbox(left, top, width, height)
+                txBox = slide.shapes.add_textbox(container_left, container_top, container_width, container_height)
                 tf = txBox.text_frame
                 tf.text = element.content or ""
                 tf.word_wrap = True
@@ -63,40 +66,89 @@ def download_presentation(presentation_id):
                 try:
                     filename = element.content.split('/')[-1]
                     image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                    if os.path.exists(image_path):
-                        slide.shapes.add_picture(image_path, left, top, width=width, height=height)
+                    
+                    if not os.path.exists(image_path):
+                        continue
+
+                    with Image.open(image_path) as img:
+                        img_width, img_height = img.size
+
+                    container_aspect = container_width / container_height
+                    img_aspect = img_width / img_height
+
+                    if img_aspect > container_aspect:
+                        new_width = container_width
+                        new_height = new_width / img_aspect
+                    else:
+                        new_height = container_height
+                        new_width = new_height * img_aspect
+
+                    left_offset = (container_width - new_width) / 2
+                    top_offset = (container_height - new_height) / 2
+                    
+                    final_left = container_left + left_offset
+                    final_top = container_top + top_offset
+
+                    slide.shapes.add_picture(image_path, final_left, final_top, width=new_width, height=new_height)
+
                 except Exception as e:
                     print(f"Could not add image {element.content}: {e}")
-            
+
             elif element.element_type == 'YOUTUBE_VIDEO' and element.content:
-                try:
-                    thumbnail_url = f"https://img.youtube.com/vi/{element.content}/maxresdefault.jpg"
-                    response = requests.get(thumbnail_url, stream=True)
-                    response.raise_for_status()
-                    image_stream = io.BytesIO(response.content)
-                    
-                    pic = slide.shapes.add_picture(image_stream, left, top, width=width, height=height)
-                    
-                    hlink = pic.click_action.hyperlink
-                    hlink.address = f"https://www.youtube.com/watch?v={element.content}"
-                    
-                except Exception as e:
-                    print(f"Could not add video thumbnail for {element.content}: {e}")
+                image_stream = None
+                thumbnail_urls = [
+                    f"https://img.youtube.com/vi/{element.content}/maxresdefault.jpg",
+                    f"https://img.youtube.com/vi/{element.content}/hqdefault.jpg",
+                    f"https://img.youtube.com/vi/{element.content}/0.jpg"
+                ]
+                for url in thumbnail_urls:
+                    try:
+                        response = requests.get(url, stream=True)
+                        response.raise_for_status()
+                        image_stream = io.BytesIO(response.content)
+                        break
+                    except requests.exceptions.RequestException as e:
+                        print(f"Could not fetch thumbnail {url}: {e}")
+                        continue
+                
+                if image_stream:
+                    try:
+                        pic = slide.shapes.add_picture(image_stream, container_left, container_top, width=container_width, height=container_height)
+                        hlink = pic.click_action.hyperlink
+                        hlink.address = f"https://www.youtube.com/watch?v={element.content}"
+                    except Exception as e:
+                        print(f"Could not add video thumbnail for {element.content}: {e}")
             
             elif element.element_type == 'UPLOADED_VIDEO' and element.content:
-                txBox = slide.shapes.add_textbox(left, top, width, height)
-                p = txBox.text_frame.paragraphs[0]
-                run = p.add_run()
-                run.text = "Видеофайл (нажмите для просмотра)"
-                
-                hlink = run.hyperlink
-                hlink.address = element.content
+                try:
+                    filename = element.content.split('/')[-1]
+                    video_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                    poster_path = os.path.join(current_app.root_path, 'static', 'video_poster.png')
+                    
+                    video_exists = os.path.exists(video_path)
+                    poster_exists = os.path.exists(poster_path)
 
+                    if video_exists and poster_exists:
+                        MIME_TYPES = { '.mp4': 'video/mp4', '.webm': 'video/webm' }
+                        _root, extension = os.path.splitext(filename)
+                        mime_type = MIME_TYPES.get(extension.lower(), 'video/mp4')
+
+                        slide.shapes.add_movie(
+                            video_path, 
+                            container_left, container_top, container_width, container_height,
+                            poster_frame_image=poster_path,
+                            mime_type=mime_type
+                        )
+                    else:
+                        if not video_exists: print(f"WARNING: Video file not found at {video_path}")
+                        if not poster_exists: print(f"WARNING: Poster frame not found at {poster_path}. UPLOADED_VIDEO will not be added.")
+                except Exception as e:
+                    print(f"Could not add uploaded video {element.content}: {e}")
 
     file_stream = io.BytesIO()
     prs.save(file_stream)
     file_stream.seek(0)
-    return send_file(file_stream, as_attachment=True, download_name=f"{presentation.title}.pptx", mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+    return send_file(file_stream, as_attachment=True, download_name=f"{presentation.title}.pptx", mimetype='application/vnd.openxmlformats-officedocument-presentationml-presentation')
 
 @presentations_bp.route('/presentations', methods=['POST'])
 @token_required
@@ -245,7 +297,9 @@ def upload_image():
     if file.filename == '':
         return jsonify({'message': 'Файл не выбран'}), 400
     if file:
-        filename = secure_filename(file.filename)
+        _root, extension = os.path.splitext(file.filename)
+        filename = f"{uuid.uuid4()}{extension}"
+        
         os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
         save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
         file.save(save_path)
@@ -260,10 +314,36 @@ def upload_video():
     file = request.files['file']
     if file.filename == '':
         return jsonify({'message': 'Файл не выбран'}), 400
+
     if file:
-        filename = secure_filename(file.filename)
+        _root, extension = os.path.splitext(file.filename)
+        
+        temp_filename = f"{uuid.uuid4()}{extension}"
+        final_filename = f"{uuid.uuid4()}.mp4"
+
+        temp_path = os.path.join(current_app.config['UPLOAD_FOLDER'], temp_filename)
+        final_path = os.path.join(current_app.config['UPLOAD_FOLDER'], final_filename)
+
         os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
-        save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        file.save(save_path)
-        file_url = url_for('static', filename=f'uploads/{filename}', _external=True)
-        return jsonify({'url': file_url}), 200
+        file.save(temp_path)
+
+        try:
+            print(f"Starting conversion from {temp_path} to {final_path}")
+            ffmpeg.input(temp_path).output(
+                final_path, 
+                vcodec='libx264',
+                acodec='aac',
+                strict='experimental'
+            ).run(capture_stdout=True, capture_stderr=True)
+            print("Conversion successful")
+            
+            os.remove(temp_path)
+            
+            file_url = url_for('static', filename=f'uploads/{final_filename}', _external=True)
+            return jsonify({'url': file_url}), 200
+
+        except ffmpeg.Error as e:
+            os.remove(temp_path)
+            print("FFmpeg Error:")
+            print(e.stderr.decode())
+            return jsonify({'message': 'Не удалось обработать видеофайл'}), 500
